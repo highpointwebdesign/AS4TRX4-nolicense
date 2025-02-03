@@ -1,5 +1,4 @@
-//  version alpha 0.0.1
-//  CODE NOT INSTALLED ON A PHYSICALL CHASSIS - MOST OF THIS IS JUST IDEAS PIECED TOGETHER
+//  version 2.6.1
 
 #include <Wire.h>
 #include <ESP32Servo.h>
@@ -306,13 +305,137 @@ void handleSerialCommands() {
       }
     } else if (input.startsWith("listpreferences")){
       listPreferences();
+    } else if (input.startsWith("resetgyro")){
+      calibrateGyroWithBlink();
+
+    } else if (input.startsWith("min")){
+      minChassis();
+    } else if (input.startsWith("max")){
+      maxChassis();
+    } else if (input.startsWith("up")){
+      raiseChassis();
+    } else if (input.startsWith("down")){
+      lowerChassis();
     }
     else {
       Serial.println("Unknown command. Use 'rideheight <value>'.");
+      printMenu();
     }
   }
 }
 
+void raiseChassis(){
+  Serial.println("DEBUG: Command 'up' corresponds to 'raise chassis'");
+
+  // Get the current offset
+  int currOffSet = offSetFromMid;
+
+  // Increase the offset by 10 degrees
+  int offsetVal = currOffSet + 10;
+
+  // Constrain offset within valid range
+  offsetVal = constrain(offsetVal, servoMin - 90, servoMax - 90);
+
+  // Save updated offset
+  saveSetting("offSetFromMid", offsetVal);
+  offSetFromMid = offsetVal; // Update global variable
+
+  // Apply new offset to all servos
+  for (int i = 0; i < NUM_SERVOS; i++) {
+      servoList[i].offset = offsetVal;
+  }
+
+  // Move servos to their new position
+  for (int i = 0; i < NUM_SERVOS; i++) {
+    int finalAngle = 90 + (servoList[i].rotationAdjustment * offsetVal);
+
+    // Ensure servo position is within limits
+    finalAngle = constrain(finalAngle, servoMin, servoMax);
+    
+    moveServo(servoList[i].servo, servoList[i].name, finalAngle);
+  }
+}
+
+
+void lowerChassis() {
+  Serial.println("DEBUG: Command 'down' corresponds to 'lower chassis'");
+
+  // Get the current offset
+  int currOffSet = offSetFromMid;
+
+  // Decrease the offset by 10 degrees
+  int offsetVal = currOffSet - 10;
+
+  // Constrain offset within valid range
+  offsetVal = constrain(offsetVal, servoMin - 90, servoMax - 90);
+
+  // Save updated offset
+  saveSetting("offSetFromMid", offsetVal);
+  offSetFromMid = offsetVal; // Update global variable
+
+  // Apply new offset to all servos
+  for (int i = 0; i < NUM_SERVOS; i++) {
+      servoList[i].offset = offsetVal;
+  }
+
+  // Move servos to their new position
+  for (int i = 0; i < NUM_SERVOS; i++) {
+    int finalAngle = 90 + (servoList[i].rotationAdjustment * offsetVal);
+
+    // Ensure servo position is within limits
+    finalAngle = constrain(finalAngle, servoMin, servoMax);
+    
+    moveServo(servoList[i].servo, servoList[i].name, finalAngle);
+  }
+}
+
+
+void minChassis(){
+  Serial.println("DEBUG: Command 'min' corresponds to 'chassis in the lowest position'");
+
+  // Set the offset to the lowest ride height possible
+  int offsetVal = servoMin - 90;
+
+  // Save updated offset
+  saveSetting("offSetFromMid", offsetVal);
+  offSetFromMid = offsetVal; // Update global variable
+
+  // Apply new offset to all servos
+  for (int i = 0; i < NUM_SERVOS; i++) {
+      servoList[i].offset = offsetVal;
+  }
+
+  // Move servos to their new position (force lowest position)
+  for (int i = 0; i < NUM_SERVOS; i++) {
+    int finalAngle = servoMin;  // Directly move servos to their lowest possible position
+
+    moveServo(servoList[i].servo, servoList[i].name, finalAngle);
+  }
+}
+
+
+void maxChassis(){
+  Serial.println("DEBUG: Command 'max' corresponds to 'chassis in the highest position'");
+
+  // Set the offset to the highest ride height possible
+  int offsetVal = servoMax - 90;
+
+  // Save updated offset
+  saveSetting("offSetFromMid", offsetVal);
+  offSetFromMid = offsetVal; // Update global variable
+
+  // Apply new offset to all servos
+  for (int i = 0; i < NUM_SERVOS; i++) {
+      servoList[i].offset = offsetVal;
+  }
+
+  // Move servos to their new position (force highest position)
+  for (int i = 0; i < NUM_SERVOS; i++) {
+    int finalAngle = servoMax;  // Directly move servos to their highest possible position
+
+    moveServo(servoList[i].servo, servoList[i].name, finalAngle);
+  }
+}
 
 
 
@@ -381,10 +504,12 @@ void printMenu() {
   Serial.println("|  rideheight <value>      |");
   Serial.println("|  listpreferences         |");
   Serial.println("|  resetgyro               |");
+  Serial.println("|  min                     |");
+  Serial.println("|  max                     |");
   Serial.println("|  up                      |");
   Serial.println("|  down                    |");
   Serial.println("============================");
-
+  Serial.println();
   listPreferences();
 
 }
